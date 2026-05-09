@@ -1,0 +1,69 @@
+---
+- name: Fetch current AzuraCast settings
+  ansible.builtin.uri:
+    url: "{{ azuracast_api_base_url }}/api/admin/settings"
+    method: GET
+    headers: "{{ azuracast_api_headers }}"
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+    return_content: true
+    status_code: [200]
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  register: azuracast_settings_live_response
+
+- name: Fetch current AzuraCast storage locations for settings references
+  ansible.builtin.uri:
+    url: "{{ azuracast_api_base_url }}/api/admin/storage_locations"
+    method: GET
+    headers: "{{ azuracast_api_headers }}"
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+    return_content: true
+    status_code: [200]
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  register: azuracast_settings_storage_live_response
+
+- name: Resolve settings storage references
+  ansible.builtin.set_fact:
+    azuracast_settings_resolved: "{{ azuracast_settings | fculpo.azuracast_api.azuracast_resolve_storage_references(azuracast_settings_storage_live_response.json) }}"
+
+- name: Build settings drift
+  ansible.builtin.set_fact:
+    azuracast_settings_after: "{{ azuracast_settings_resolved | fculpo.azuracast_api.azuracast_compare_shape }}"
+
+- name: Select desired AzuraCast settings fields from live state
+  ansible.builtin.set_fact:
+    azuracast_settings_before: "{{ azuracast_settings_live_response.json | fculpo.azuracast_api.azuracast_compare_shape | fculpo.azuracast_api.azuracast_desired_shape(azuracast_settings_after) }}"
+
+- name: Report settings drift
+  ansible.builtin.debug:
+    msg:
+      resource: settings
+      before: "{{ azuracast_settings_before | fculpo.azuracast_api.azuracast_redact }}"
+      after: "{{ azuracast_settings_after | fculpo.azuracast_api.azuracast_redact }}"
+  when: azuracast_settings_after | length > 0 and azuracast_settings_before != azuracast_settings_after
+
+- name: Update AzuraCast settings
+  ansible.builtin.uri:
+    url: "{{ azuracast_api_base_url }}/api/admin/settings"
+    method: PUT
+    headers: "{{ azuracast_api_headers }}"
+    body_format: json
+    body: "{{ azuracast_settings_resolved }}"
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+    return_content: true
+    status_code: [200]
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  when:
+    - not ansible_check_mode
+    - azuracast_settings_after | length > 0
+    - azuracast_settings_before != azuracast_settings_after

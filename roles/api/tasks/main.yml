@@ -1,0 +1,55 @@
+---
+- name: Require AzuraCast API base URL
+  ansible.builtin.assert:
+    that:
+      - azuracast_api.base_url is defined
+      - azuracast_api.base_url | length > 0
+    fail_msg: Set azuracast_api.base_url in inventory or play variables.
+  tags:
+    - storage_rotate_credentials
+
+- name: Require AzuraCast API key
+  ansible.builtin.assert:
+    that:
+      - azuracast_api_key | length > 0
+    fail_msg: Set AZURACAST_API_KEY in the environment or override azuracast_api_key.
+  tags:
+    - storage_rotate_credentials
+
+- name: Check AzuraCast API authentication
+  ansible.builtin.uri:
+    url: "{{ azuracast_api_base_url }}/api/admin/settings"
+    method: GET
+    headers: "{{ azuracast_api_headers }}"
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+    return_content: true
+    status_code: [200, 401, 403, 404, 500]
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  register: azuracast_api_auth_response
+  failed_when: false
+  tags:
+    - storage_rotate_credentials
+
+- name: Fail when API authentication is not successful
+  ansible.builtin.assert:
+    that:
+      - azuracast_api_auth_response.status == 200
+    fail_msg: >-
+      AzuraCast API authentication failed for GET /api/admin/settings with status
+      {{ azuracast_api_auth_response.status | default('unreachable') }} and response
+      {{ azuracast_api_auth_response.json | default(azuracast_api_auth_response.content | default('')) | fculpo.azuracast_api.azuracast_redact }}.
+  tags:
+    - storage_rotate_credentials
+
+- name: Validate live OpenAPI endpoints
+  ansible.builtin.include_tasks:
+    file: openapi.yml
+    apply:
+      tags:
+        - storage_rotate_credentials
+  tags:
+    - storage_rotate_credentials

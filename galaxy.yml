@@ -1,0 +1,25 @@
+---
+namespace: fculpo
+name: azuracast_api
+version: 0.1.0
+readme: README.md
+authors:
+  - fculpo
+description: Manage AzuraCast application configuration through the supported REST API.
+license:
+  - MIT
+tags:
+  - azuracast
+  - radio
+  - api
+  - infrastructure
+repository: https://github.com/fculpo/ansible-azuracast-api
+issues: https://github.com/fculpo/ansible-azuracast-api/issues
+build_ignore:
+  - .github
+  - .gitignore
+  - .pytest_cache
+  - .serena
+  - dist
+  - tests
+  - "*.tar.gz"

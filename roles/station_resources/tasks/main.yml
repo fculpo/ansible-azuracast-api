@@ -1,0 +1,162 @@
+---
+- name: Refresh current AzuraCast stations for station-scoped resources
+  ansible.builtin.uri:
+    url: "{{ azuracast_api_base_url }}/api/admin/stations"
+    method: GET
+    headers: "{{ azuracast_api_headers }}"
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+    return_content: true
+    status_code: [200]
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  register: azuracast_station_resources_stations_response
+
+- name: Build station ID map
+  ansible.builtin.set_fact:
+    azuracast_station_ids_by_short_name: "{{ azuracast_station_resources_stations_response.json | items2dict(key_name='short_name', value_name='id') }}"
+
+- name: Fail when desired station resources reference an unknown station
+  ansible.builtin.assert:
+    that:
+      - item.short_name in azuracast_station_ids_by_short_name
+    fail_msg: "Desired station {{ item.short_name }} does not exist in AzuraCast API results."
+  loop: "{{ azuracast_stations }}"
+
+- name: Define station resource families
+  ansible.builtin.set_fact:
+    azuracast_station_resource_families:
+      - family: mounts
+        key: name
+        collection_path: /api/station/{station_id}/mounts
+        item_path: /api/station/{station_id}/mount/{id}
+      - family: playlists
+        key: name
+        collection_path: /api/station/{station_id}/playlists
+        item_path: /api/station/{station_id}/playlist/{id}
+      - family: remotes
+        key: display_name
+        collection_path: /api/station/{station_id}/remotes
+        item_path: /api/station/{station_id}/remote/{id}
+      - family: webhooks
+        key: name
+        collection_path: /api/station/{station_id}/webhooks
+        item_path: /api/station/{station_id}/webhook/{id}
+
+- name: Fetch live station resource family
+  ansible.builtin.uri:
+    url: "{{ azuracast_api_base_url }}{{ family.collection_path | replace('{station_id}', station_id | string) }}"
+    method: GET
+    headers: "{{ azuracast_api_headers }}"
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+    return_content: true
+    status_code: [200]
+  loop: "{{ azuracast_stations | product(azuracast_station_resource_families) | list }}"
+  loop_control:
+    loop_var: station_family
+    label: "{{ station.short_name }} {{ family.family }}"
+  vars:
+    station: "{{ station_family.0 }}"
+    family: "{{ station_family.1 }}"
+    station_id: "{{ azuracast_station_ids_by_short_name[station.short_name] }}"
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  register: azuracast_station_resource_live_responses
+
+- name: Report station resource discovery
+  ansible.builtin.debug:
+    msg:
+      resource: station_resources
+      fetched: "{{ azuracast_station_resource_live_responses.results | length }}"
+
+- name: Build normalized station resource live results
+  ansible.builtin.set_fact:
+    azuracast_station_resource_live_results: "{{ azuracast_station_resource_live_results | default([]) + [live_result] }}"
+  vars:
+    station: "{{ item.station_family.0 }}"
+    family: "{{ item.station_family.1 }}"
+    live_result:
+      station: "{{ station.short_name }}"
+      family: "{{ family.family }}"
+      key: "{{ family.key }}"
+      resources: "{{ item.json }}"
+  loop: "{{ azuracast_station_resource_live_responses.results }}"
+  loop_control:
+    label: "{{ item.station_family.0.short_name }} {{ item.station_family.1.family }}"
+
+- name: Plan station resource actions
+  ansible.builtin.set_fact:
+    azuracast_station_resource_plans: "{{ azuracast_stations | fculpo.azuracast_api.azuracast_station_resource_plans(azuracast_station_resource_live_results | default([])) }}"
+
+- name: Report station resource plans
+  ansible.builtin.debug:
+    msg: "{{ azuracast_station_resource_plans | fculpo.azuracast_api.azuracast_redact }}"
+
+- name: Create missing station resources
+  ansible.builtin.uri:
+    url: "{{ azuracast_api_base_url }}{{ family.collection_path | replace('{station_id}', station_id | string) }}"
+    method: POST
+    headers: "{{ azuracast_api_headers }}"
+    body_format: json
+    body: "{{ item.1 }}"
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+    return_content: true
+    status_code: [200]
+  vars:
+    plan: "{{ item.0 }}"
+    station_id: "{{ azuracast_station_ids_by_short_name[plan.station] }}"
+    family: "{{ azuracast_station_resource_families | selectattr('family', 'equalto', plan.family) | first }}"
+  loop: "{{ azuracast_station_resource_plans | subelements('create') }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  when: not ansible_check_mode
+
+- name: Update changed station resources
+  ansible.builtin.uri:
+    url: "{{ azuracast_api_base_url }}{{ family.item_path | replace('{station_id}', station_id | string) | replace('{id}', item.1.id | string) }}"
+    method: PUT
+    headers: "{{ azuracast_api_headers }}"
+    body_format: json
+    body: "{{ item.1.after }}"
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+    return_content: true
+    status_code: [200]
+  vars:
+    plan: "{{ item.0 }}"
+    station_id: "{{ azuracast_station_ids_by_short_name[plan.station] }}"
+    family: "{{ azuracast_station_resource_families | selectattr('family', 'equalto', plan.family) | first }}"
+  loop: "{{ azuracast_station_resource_plans | subelements('update') }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  when: not ansible_check_mode
+
+- name: Delete unmanaged station resources only when explicitly allowed
+  ansible.builtin.uri:
+    url: "{{ azuracast_api_base_url }}{{ family.item_path | replace('{station_id}', station_id | string) | replace('{id}', item.1.id | string) }}"
+    method: DELETE
+    headers: "{{ azuracast_api_headers }}"
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+    return_content: true
+    status_code: [200]
+  vars:
+    plan: "{{ item.0 }}"
+    station_id: "{{ azuracast_station_ids_by_short_name[plan.station] }}"
+    family: "{{ azuracast_station_resource_families | selectattr('family', 'equalto', plan.family) | first }}"
+  loop: "{{ azuracast_station_resource_plans | subelements('unmanaged') }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  when:
+    - not ansible_check_mode
+    - azuracast_destructive_sync
+    - item.0.family in azuracast_destructive_allow

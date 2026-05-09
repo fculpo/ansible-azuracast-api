@@ -1,0 +1,32 @@
+---
+- name: Fetch live AzuraCast OpenAPI document
+  ansible.builtin.uri:
+    url: "{{ azuracast_api_openapi_url }}"
+    method: GET
+    headers: "{{ azuracast_api_headers }}"
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+    return_content: true
+    status_code: [200, 401, 403, 404, 500]
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  register: azuracast_openapi_response
+  failed_when: false
+
+- name: Fail when live OpenAPI document is unavailable
+  ansible.builtin.assert:
+    that:
+      - azuracast_openapi_response.status == 200
+    fail_msg: >-
+      Could not fetch {{ azuracast_api.openapi_path | default('/api/openapi.yml') }} from
+      {{ azuracast_api_base_url }}. Status was
+      {{ azuracast_openapi_response.status | default('unreachable') }}.
+
+- name: Verify required AzuraCast API endpoints exist
+  ansible.builtin.assert:
+    that:
+      - azuracast_openapi_response.content is search(item)
+    fail_msg: "Live AzuraCast OpenAPI document is missing required endpoint {{ item }}."
+  loop: "{{ azuracast_api.required_endpoints | default([]) }}"

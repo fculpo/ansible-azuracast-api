@@ -1,0 +1,9 @@
+---
+azuracast_api_key: "{{ lookup('ansible.builtin.env', 'AZURACAST_API_KEY', default='') }}"
+azuracast_api_headers:
+  X-API-Key: "{{ azuracast_api_key }}"
+  Accept: application/json
+  Content-Type: application/json
+azuracast_api_base_url: "{{ azuracast_api.base_url | regex_replace('/+$', '') }}"
+azuracast_api_openapi_url: "{{ azuracast_api_base_url }}{{ azuracast_api.openapi_path | default('/api/openapi.yml') }}"
+azuracast_api_hide_sensitive_logs: true
