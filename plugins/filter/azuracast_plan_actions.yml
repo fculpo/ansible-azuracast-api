@@ -1,0 +1,39 @@
+---
+DOCUMENTATION:
+  name: azuracast_plan_actions
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Build an AzuraCast create, update, noop, and unmanaged plan
+  description:
+    - Compares desired AzuraCast resources with live API resources.
+    - Returns deterministic action buckets used by the collection roles.
+    - Read-only metadata and sensitive fields are ignored during comparison.
+  positional: _input, live, key
+  options:
+    _input:
+      description: Desired resource list.
+      type: list
+      elements: dictionary
+      required: true
+    live:
+      description: Live resource list from the AzuraCast API.
+      type: list
+      elements: dictionary
+      required: true
+    key:
+      description: Stable resource key used to match desired and live resources.
+      type: string
+      required: true
+
+EXAMPLES: |
+  - name: Plan storage location changes
+    ansible.builtin.debug:
+      msg: >-
+        {{ azuracast_storage_locations
+           | fculpo.azuracast_api.azuracast_plan_actions(live_storage_locations, 'type') }}
+
+RETURN:
+  _value:
+    description: Plan with create, update, noop, and unmanaged lists.
+    type: dictionary

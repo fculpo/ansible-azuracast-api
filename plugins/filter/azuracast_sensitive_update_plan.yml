@@ -1,0 +1,40 @@
+---
+DOCUMENTATION:
+  name: azuracast_sensitive_update_plan
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Plan explicit updates for resources containing sensitive fields
+  description:
+    - Finds desired resources that contain sensitive-looking keys.
+    - Targets only resources that already exist in live API data.
+    - Used for intentional credential rotation flows.
+  positional: _input, live, key
+  options:
+    _input:
+      description: Desired resource list.
+      type: list
+      elements: dictionary
+      required: true
+    live:
+      description: Live resource list from the AzuraCast API.
+      type: list
+      elements: dictionary
+      required: true
+    key:
+      description: Stable resource key used to match desired and live resources.
+      type: string
+      required: true
+
+EXAMPLES: |
+  - name: Plan storage credential rotations
+    ansible.builtin.debug:
+      msg: >-
+        {{ azuracast_storage_locations
+           | fculpo.azuracast_api.azuracast_sensitive_update_plan(live_storage_locations, 'type') }}
+
+RETURN:
+  _value:
+    description: Existing resources that should receive sensitive field updates.
+    type: list
+    elements: dictionary

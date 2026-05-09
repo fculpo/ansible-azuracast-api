@@ -1,0 +1,27 @@
+---
+DOCUMENTATION:
+  name: azuracast_normalize
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Normalize AzuraCast data for deterministic output
+  description:
+    - Removes read-only metadata.
+    - Drops null values.
+    - Sorts dictionary keys recursively.
+  positional: _input
+  options:
+    _input:
+      description: AzuraCast data.
+      type: raw
+      required: true
+
+EXAMPLES: |
+  - name: Normalize live resource data
+    ansible.builtin.debug:
+      msg: "{{ live_resource | fculpo.azuracast_api.azuracast_normalize }}"
+
+RETURN:
+  _value:
+    description: Normalized copy of the input value.
+    type: raw

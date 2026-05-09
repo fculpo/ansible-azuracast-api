@@ -1,0 +1,28 @@
+---
+DOCUMENTATION:
+  name: azuracast_station_api_payloads
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Remove station-scoped resource lists from station payloads
+  description:
+    - Removes mounts, playlists, remotes, and webhooks from station definitions.
+    - Leaves fields that belong to the station create/update API payload.
+  positional: _input
+  options:
+    _input:
+      description: Desired station list.
+      type: list
+      elements: dictionary
+      required: true
+
+EXAMPLES: |
+  - name: Build station API payloads
+    ansible.builtin.set_fact:
+      station_payloads: "{{ azuracast_stations | fculpo.azuracast_api.azuracast_station_api_payloads }}"
+
+RETURN:
+  _value:
+    description: Station list without station-scoped resource lists.
+    type: list
+    elements: dictionary

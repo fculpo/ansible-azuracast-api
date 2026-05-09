@@ -1,0 +1,46 @@
+---
+DOCUMENTATION:
+  name: azuracast_destructive_deletes
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Apply AzuraCast delete safety gates to unmanaged resources
+  description:
+    - Returns unmanaged resources only when global destructive sync is enabled.
+    - Requires the resource family to be present in the explicit allow-list.
+  positional: _input, destructive_sync, destructive_allow, family
+  options:
+    _input:
+      description: Plan returned by O(fculpo.azuracast_api.azuracast_plan_actions#filter).
+      type: dictionary
+      required: true
+    destructive_sync:
+      description: Global delete authority switch.
+      type: boolean
+      required: true
+    destructive_allow:
+      description: Resource families allowed to delete unmanaged resources.
+      type: list
+      elements: string
+      required: true
+    family:
+      description: Resource family currently being converged.
+      type: string
+      required: true
+
+EXAMPLES: |
+  - name: Select unmanaged storage locations allowed for deletion
+    ansible.builtin.debug:
+      msg: >-
+        {{ storage_plan
+           | fculpo.azuracast_api.azuracast_destructive_deletes(
+               azuracast_destructive_sync,
+               azuracast_destructive_allow,
+               'storage_locations'
+             ) }}
+
+RETURN:
+  _value:
+    description: Unmanaged resources that may be deleted, or an empty list.
+    type: list
+    elements: dictionary

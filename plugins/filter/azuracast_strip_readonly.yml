@@ -1,0 +1,26 @@
+---
+DOCUMENTATION:
+  name: azuracast_strip_readonly
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Remove read-only AzuraCast API metadata
+  description:
+    - Removes operational and read-only API fields recursively.
+    - Used before comparing desired state to live API data.
+  positional: _input
+  options:
+    _input:
+      description: AzuraCast API data.
+      type: raw
+      required: true
+
+EXAMPLES: |
+  - name: Remove live API metadata
+    ansible.builtin.debug:
+      msg: "{{ live_resource | fculpo.azuracast_api.azuracast_strip_readonly }}"
+
+RETURN:
+  _value:
+    description: Input value with read-only metadata removed.
+    type: raw

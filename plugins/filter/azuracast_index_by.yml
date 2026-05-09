@@ -1,0 +1,31 @@
+---
+DOCUMENTATION:
+  name: azuracast_index_by
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Index AzuraCast resource dictionaries by a stable key
+  description:
+    - Converts a resource list to a dictionary keyed by one field.
+    - Raises an Ansible filter error when a resource is missing the key or duplicates it.
+  positional: _input, key
+  options:
+    _input:
+      description: Resource list.
+      type: list
+      elements: dictionary
+      required: true
+    key:
+      description: Resource field to index by.
+      type: string
+      required: true
+
+EXAMPLES: |
+  - name: Index storage locations by type
+    ansible.builtin.set_fact:
+      storage_by_type: "{{ live_storage_locations | fculpo.azuracast_api.azuracast_index_by('type') }}"
+
+RETURN:
+  _value:
+    description: Dictionary keyed by the requested resource field.
+    type: dictionary

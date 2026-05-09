@@ -1,6 +1,8 @@
 import importlib.util
 from pathlib import Path
 
+from ansible.errors import AnsibleFilterError
+
 
 PLUGIN_PATH = (
     Path(__file__).resolve().parents[1]
@@ -42,7 +44,7 @@ def test_index_by_rejects_duplicate_keys():
 
     try:
         azuracast_index_by(resources, "name")
-    except ValueError as exc:
+    except AnsibleFilterError as exc:
         assert "Duplicate AzuraCast resource key: music" in str(exc)
     else:
         raise AssertionError("duplicate keys must fail")
@@ -323,7 +325,7 @@ def test_resolve_storage_references_rejects_unknown_types():
 
     try:
         azuracast_api.azuracast_resolve_storage_references(payload, [{"id": 11, "type": "station_media"}])
-    except ValueError as exc:
+    except AnsibleFilterError as exc:
         assert "Unknown AzuraCast storage location type: missing" in str(exc)
     else:
         raise AssertionError("unknown storage types must fail")

@@ -1,0 +1,30 @@
+---
+DOCUMENTATION:
+  name: azuracast_desired_shape
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Select desired keys from live AzuraCast data
+  description:
+    - Narrows live API data to the fields declared in desired state.
+    - Prevents undeclared live fields from being treated as managed drift.
+  positional: _input, desired
+  options:
+    _input:
+      description: Live AzuraCast resource data.
+      type: raw
+      required: true
+    desired:
+      description: Desired shape whose keys should be selected from the input.
+      type: raw
+      required: true
+
+EXAMPLES: |
+  - name: Compare only declared settings
+    ansible.builtin.set_fact:
+      before: "{{ live_settings | fculpo.azuracast_api.azuracast_desired_shape(desired_settings) }}"
+
+RETURN:
+  _value:
+    description: Live data narrowed to desired-state keys.
+    type: raw

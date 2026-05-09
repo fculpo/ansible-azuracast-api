@@ -1,3 +1,6 @@
+from ansible.errors import AnsibleFilterError
+
+
 READONLY_KEYS = {
     "id",
     "links",
@@ -103,9 +106,9 @@ def azuracast_index_by(resources, key):
     for resource in resources or []:
         resource_key = resource.get(key)
         if resource_key is None:
-            raise ValueError(f"AzuraCast resource is missing key: {key}")
+            raise AnsibleFilterError(f"AzuraCast resource is missing key: {key}")
         if resource_key in indexed:
-            raise ValueError(f"Duplicate AzuraCast resource key: {resource_key}")
+            raise AnsibleFilterError(f"Duplicate AzuraCast resource key: {resource_key}")
         indexed[resource_key] = resource
     return indexed
 
@@ -218,15 +221,21 @@ def azuracast_resolve_storage_references(value, storage_locations):
             if _is_storage_reference_key(parent_key):
                 storage_type = item.get("type")
                 if storage_type is None:
-                    raise ValueError(f"AzuraCast storage reference is missing type: {parent_key}")
+                    raise AnsibleFilterError(
+                        f"AzuraCast storage reference is missing type: {parent_key}"
+                    )
 
                 storage_location = storage_locations_by_type.get(storage_type)
                 if storage_location is None:
-                    raise ValueError(f"Unknown AzuraCast storage location type: {storage_type}")
+                    raise AnsibleFilterError(
+                        f"Unknown AzuraCast storage location type: {storage_type}"
+                    )
 
                 storage_id = storage_location.get("id")
                 if storage_id is None:
-                    raise ValueError(f"AzuraCast storage location is missing id: {storage_type}")
+                    raise AnsibleFilterError(
+                        f"AzuraCast storage location is missing id: {storage_type}"
+                    )
 
                 return storage_id
 

@@ -1,0 +1,35 @@
+---
+DOCUMENTATION:
+  name: azuracast_station_resource_plans
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Build per-station plans for mounts, playlists, remotes, and webhooks
+  description:
+    - Compares desired station-scoped resources with live API results.
+    - Returns one action plan per station and resource family.
+  positional: _input, live_results
+  options:
+    _input:
+      description: Desired station list, including station-scoped resource lists.
+      type: list
+      elements: dictionary
+      required: true
+    live_results:
+      description: Normalized live station resource results collected by the role.
+      type: list
+      elements: dictionary
+      required: true
+
+EXAMPLES: |
+  - name: Build station resource plans
+    ansible.builtin.set_fact:
+      resource_plans: >-
+        {{ azuracast_stations
+           | fculpo.azuracast_api.azuracast_station_resource_plans(live_station_resources) }}
+
+RETURN:
+  _value:
+    description: Per-station, per-family action plans.
+    type: list
+    elements: dictionary

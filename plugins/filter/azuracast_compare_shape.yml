@@ -1,0 +1,27 @@
+---
+DOCUMENTATION:
+  name: azuracast_compare_shape
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Normalize AzuraCast data for drift comparison
+  description:
+    - Removes read-only AzuraCast API metadata.
+    - Removes sensitive-looking fields from comparison.
+    - Drops null values and sorts dictionary keys recursively.
+  positional: _input
+  options:
+    _input:
+      description: AzuraCast resource data.
+      type: raw
+      required: true
+
+EXAMPLES: |
+  - name: Build comparable settings shape
+    ansible.builtin.set_fact:
+      settings_shape: "{{ azuracast_settings | fculpo.azuracast_api.azuracast_compare_shape }}"
+
+RETURN:
+  _value:
+    description: Comparable data structure with read-only and sensitive fields removed.
+    type: raw

@@ -1,0 +1,26 @@
+---
+DOCUMENTATION:
+  name: azuracast_redact
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Redact sensitive-looking AzuraCast values
+  description:
+    - Replaces values whose keys look sensitive with asterisks.
+    - Recurses through lists and dictionaries.
+  positional: _input
+  options:
+    _input:
+      description: Value to redact.
+      type: raw
+      required: true
+
+EXAMPLES: |
+  - name: Print a safe plan
+    ansible.builtin.debug:
+      msg: "{{ plan | fculpo.azuracast_api.azuracast_redact }}"
+
+RETURN:
+  _value:
+    description: Redacted copy of the input value.
+    type: raw

@@ -1,0 +1,33 @@
+---
+DOCUMENTATION:
+  name: azuracast_resolve_storage_references
+  author:
+    - Fabien Culpo (@fculpo)
+  version_added: 0.1.0
+  short_description: Resolve AzuraCast storage type references to live IDs
+  description:
+    - Replaces values of keys ending in C(_storage_location) when they are dictionaries with a C(type).
+    - Looks up that C(type) in live storage locations and returns the matching numeric ID.
+  positional: _input, storage_locations
+  options:
+    _input:
+      description: Desired AzuraCast payload containing storage references.
+      type: raw
+      required: true
+    storage_locations:
+      description: Live storage locations from the AzuraCast API.
+      type: list
+      elements: dictionary
+      required: true
+
+EXAMPLES: |
+  - name: Resolve station storage references
+    ansible.builtin.set_fact:
+      stations_resolved: >-
+        {{ azuracast_stations
+           | fculpo.azuracast_api.azuracast_resolve_storage_references(live_storage_locations) }}
+
+RETURN:
+  _value:
+    description: Input data with storage type references replaced by live IDs.
+    type: raw
