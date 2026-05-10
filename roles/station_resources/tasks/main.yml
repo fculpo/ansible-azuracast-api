@@ -97,66 +97,214 @@
   ansible.builtin.debug:
     msg: "{{ azuracast_station_resource_plans | fculpo.azuracast_api.azuracast_redact }}"
 
-- name: Create missing station resources
-  ansible.builtin.uri:
-    url: "{{ azuracast_api_base_url }}{{ family.collection_path | replace('{station_id}', station_id | string) }}"
-    method: POST
-    headers: "{{ azuracast_api_headers }}"
-    body_format: json
-    body: "{{ item.1 }}"
+- name: Create missing station mounts
+  fculpo.azuracast_api.station_mount:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    name: "{{ item.1.name }}"
+    resource: "{{ item.1 }}"
+    state: present
     validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
     timeout: "{{ azuracast_api.timeout | default(30) }}"
-    return_content: true
-    status_code: [200]
-  vars:
-    plan: "{{ item.0 }}"
-    station_id: "{{ azuracast_station_ids_by_short_name[plan.station] }}"
-    family: "{{ azuracast_station_resource_families | selectattr('family', 'equalto', plan.family) | first }}"
-  loop: "{{ azuracast_station_resource_plans | subelements('create') }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'mounts') | list | subelements('create') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.name }}"
   delegate_to: localhost
   become: false
   no_log: "{{ azuracast_api_hide_sensitive_logs }}"
-  when: not ansible_check_mode
 
-- name: Update changed station resources
-  ansible.builtin.uri:
-    url: "{{ azuracast_api_base_url }}{{ family.item_path | replace('{station_id}', station_id | string) | replace('{id}', item.1.id | string) }}"
-    method: PUT
-    headers: "{{ azuracast_api_headers }}"
-    body_format: json
-    body: "{{ item.1.after }}"
+- name: Create missing station playlists
+  fculpo.azuracast_api.station_playlist:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    name: "{{ item.1.name }}"
+    resource: "{{ item.1 }}"
+    state: present
     validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
     timeout: "{{ azuracast_api.timeout | default(30) }}"
-    return_content: true
-    status_code: [200]
-  vars:
-    plan: "{{ item.0 }}"
-    station_id: "{{ azuracast_station_ids_by_short_name[plan.station] }}"
-    family: "{{ azuracast_station_resource_families | selectattr('family', 'equalto', plan.family) | first }}"
-  loop: "{{ azuracast_station_resource_plans | subelements('update') }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'playlists') | list | subelements('create') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.name }}"
   delegate_to: localhost
   become: false
   no_log: "{{ azuracast_api_hide_sensitive_logs }}"
-  when: not ansible_check_mode
 
-- name: Delete unmanaged station resources only when explicitly allowed
-  ansible.builtin.uri:
-    url: "{{ azuracast_api_base_url }}{{ family.item_path | replace('{station_id}', station_id | string) | replace('{id}', item.1.id | string) }}"
-    method: DELETE
-    headers: "{{ azuracast_api_headers }}"
+- name: Create missing station remotes
+  fculpo.azuracast_api.station_remote:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    display_name: "{{ item.1.display_name }}"
+    resource: "{{ item.1 }}"
+    state: present
     validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
     timeout: "{{ azuracast_api.timeout | default(30) }}"
-    return_content: true
-    status_code: [200]
-  vars:
-    plan: "{{ item.0 }}"
-    station_id: "{{ azuracast_station_ids_by_short_name[plan.station] }}"
-    family: "{{ azuracast_station_resource_families | selectattr('family', 'equalto', plan.family) | first }}"
-  loop: "{{ azuracast_station_resource_plans | subelements('unmanaged') }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'remotes') | list | subelements('create') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.display_name }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+
+- name: Create missing station webhooks
+  fculpo.azuracast_api.station_webhook:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    name: "{{ item.1.name }}"
+    resource: "{{ item.1 }}"
+    state: present
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'webhooks') | list | subelements('create') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.name }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+
+- name: Update changed station mounts
+  fculpo.azuracast_api.station_mount:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    name: "{{ item.1.key }}"
+    resource: "{{ item.1.after }}"
+    state: present
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'mounts') | list | subelements('update') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.key }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+
+- name: Update changed station playlists
+  fculpo.azuracast_api.station_playlist:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    name: "{{ item.1.key }}"
+    resource: "{{ item.1.after }}"
+    state: present
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'playlists') | list | subelements('update') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.key }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+
+- name: Update changed station remotes
+  fculpo.azuracast_api.station_remote:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    display_name: "{{ item.1.key }}"
+    resource: "{{ item.1.after }}"
+    state: present
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'remotes') | list | subelements('update') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.key }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+
+- name: Update changed station webhooks
+  fculpo.azuracast_api.station_webhook:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    name: "{{ item.1.key }}"
+    resource: "{{ item.1.after }}"
+    state: present
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'webhooks') | list | subelements('update') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.key }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+
+- name: Delete unmanaged station mounts only when explicitly allowed
+  fculpo.azuracast_api.station_mount:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    name: "{{ item.1.name }}"
+    state: absent
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'mounts') | list | subelements('unmanaged') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.name }}"
   delegate_to: localhost
   become: false
   no_log: "{{ azuracast_api_hide_sensitive_logs }}"
   when:
-    - not ansible_check_mode
     - azuracast_destructive_sync
-    - item.0.family in azuracast_destructive_allow
+    - "'mounts' in azuracast_destructive_allow"
+
+- name: Delete unmanaged station playlists only when explicitly allowed
+  fculpo.azuracast_api.station_playlist:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    name: "{{ item.1.name }}"
+    state: absent
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'playlists') | list | subelements('unmanaged') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.name }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  when:
+    - azuracast_destructive_sync
+    - "'playlists' in azuracast_destructive_allow"
+
+- name: Delete unmanaged station remotes only when explicitly allowed
+  fculpo.azuracast_api.station_remote:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    display_name: "{{ item.1.display_name }}"
+    state: absent
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'remotes') | list | subelements('unmanaged') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.display_name }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  when:
+    - azuracast_destructive_sync
+    - "'remotes' in azuracast_destructive_allow"
+
+- name: Delete unmanaged station webhooks only when explicitly allowed
+  fculpo.azuracast_api.station_webhook:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: "{{ item.0.station }}"
+    name: "{{ item.1.name }}"
+    state: absent
+    validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
+    timeout: "{{ azuracast_api.timeout | default(30) }}"
+  loop: "{{ azuracast_station_resource_plans | selectattr('family', 'equalto', 'webhooks') | list | subelements('unmanaged') }}"
+  loop_control:
+    label: "{{ item.0.station }} {{ item.1.name }}"
+  delegate_to: localhost
+  become: false
+  no_log: "{{ azuracast_api_hide_sensitive_logs }}"
+  when:
+    - azuracast_destructive_sync
+    - "'webhooks' in azuracast_destructive_allow"

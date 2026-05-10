@@ -113,9 +113,10 @@ try:
     from ansible_collections.fculpo.azuracast_api.plugins.module_utils import (
         azuracast_planning as planning,
     )
-    from ansible_collections.fculpo.azuracast_api.plugins.module_utils.azuracast_resources import (
-        ResourceSpec,
-        reconcile_resource,
+    from ansible_collections.fculpo.azuracast_api.plugins.module_utils.azuracast_station_resources import (
+        apply_station_resource,
+        build_desired_station_resource,
+        station_resource_spec,
     )
 except ImportError:
     import importlib.util
@@ -134,55 +135,31 @@ except ImportError:
 
     azuracast_client = _load_module_util("azuracast_client")
     planning = _load_module_util("azuracast_planning")
-    azuracast_resources = _load_module_util("azuracast_resources")
+    azuracast_station_resources = _load_module_util("azuracast_station_resources")
     AzuraCastApiError = azuracast_client.AzuraCastApiError
     AzuraCastClient = azuracast_client.AzuraCastClient
-    ResourceSpec = azuracast_resources.ResourceSpec
-    reconcile_resource = azuracast_resources.reconcile_resource
+    apply_station_resource = azuracast_station_resources.apply_station_resource
+    build_desired_station_resource = azuracast_station_resources.build_desired_station_resource
+    station_resource_spec = azuracast_station_resources.station_resource_spec
 
 
 def station_mount_spec():
-    return ResourceSpec(
-        family="station mount",
-        collection_path="/api/station/{station_id}/mounts",
-        item_path="/api/station/{station_id}/mount/{id}",
-        key="name",
-        scope_fields=("station_id",),
+    return station_resource_spec(
+        "station mount",
+        "/api/station/{station_id}/mounts",
+        "/api/station/{station_id}/mount/{id}",
+        "name",
     )
 
 
 def build_desired_station_mount(name, resource, sensitive_resource=None):
-    desired = dict(resource or {})
-    desired.update(sensitive_resource or {})
-    if "name" in desired and desired["name"] != name:
-        raise planning.AzuraCastPlanningError(
-            "Station mount resource name must match the module name option"
-        )
-    desired["name"] = name
-    return desired
-
-
-def resolve_station_id(client, station_short_name=None, station_id=None):
-    if station_id is not None:
-        return station_id
-    if not station_short_name:
-        raise planning.AzuraCastPlanningError(
-            "station_short_name or station_id is required"
-        )
-
-    stations = client.list_resources("/api/admin/stations", {})
-    stations_by_short_name = planning.azuracast_index_by(stations, "short_name")
-    station = stations_by_short_name.get(station_short_name)
-    if station is None:
-        raise planning.AzuraCastPlanningError(
-            f"Unknown AzuraCast station short_name: {station_short_name}"
-        )
-    station_id = station.get("id")
-    if station_id is None:
-        raise planning.AzuraCastPlanningError(
-            f"AzuraCast station is missing id: {station_short_name}"
-        )
-    return station_id
+    return build_desired_station_resource(
+        "name",
+        name,
+        resource,
+        sensitive_resource,
+        "Station mount",
+    )
 
 
 def apply_station_mount(
@@ -194,22 +171,15 @@ def apply_station_mount(
     check_mode=False,
     openapi_contract=None,
 ):
-    scope = {
-        "station_id": resolve_station_id(
-            client,
-            station_short_name=station_short_name,
-            station_id=station_id,
-        )
-    }
-
-    return reconcile_resource(
+    return apply_station_resource(
         client,
         station_mount_spec(),
         desired,
+        station_short_name=station_short_name,
+        station_id=station_id,
         state=state,
         check_mode=check_mode,
         openapi_contract=openapi_contract,
-        scope=scope,
     )
 
 
