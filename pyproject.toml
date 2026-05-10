@@ -1,0 +1,14 @@
+[project]
+name = "ansible-azuracast-api-dev"
+version = "0.0.0"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "ansible-core",
+  "pytest",
+]
+
+[tool.uv]
+package = false

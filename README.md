@@ -474,13 +474,15 @@ directory. Sensitive-looking fields are redacted.
 Run the unit tests:
 
 ```bash
-python -m pip install ansible-core pytest
-pytest -q
+mise install
+uv sync --group dev
+uv run pytest -q
 ```
 
 Build the collection:
 
 ```bash
+source .venv/bin/activate
 ansible-galaxy collection build . --output-path dist --force
 ```
 
@@ -488,10 +490,11 @@ Run Ansible sanity tests from a collection layout:
 
 ```bash
 mkdir -p /tmp/ansible-test-layout/ansible_collections/fculpo
-rsync -a --exclude .git --exclude .serena --exclude .pytest_cache --exclude dist \
+rsync -a --exclude .git --exclude .serena --exclude .venv --exclude .pytest_cache --exclude dist \
   ./ /tmp/ansible-test-layout/ansible_collections/fculpo/azuracast_api/
 cd /tmp/ansible-test-layout/ansible_collections/fculpo/azuracast_api
-ansible-test sanity --python 3.13
+source "$OLDPWD/.venv/bin/activate"
+ansible-test sanity --python 3.12
 ```
 
 Install the local artifact for consumer testing:

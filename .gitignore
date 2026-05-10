@@ -1,4 +1,5 @@
 .ansible/
+.venv/
 .pytest_cache/
 .serena/
 __pycache__/
