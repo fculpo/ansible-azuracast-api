@@ -1,0 +1,48 @@
+openapi: 3.0.0
+paths:
+  /api/station/{station_id}/webhooks:
+    get:
+      responses:
+        '200':
+          description: Webhook list
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRequest'
+      responses:
+        '200':
+          description: Created webhook
+  /api/station/{station_id}/webhook/{id}:
+    put:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRequest'
+      responses:
+        '200':
+          description: Updated webhook
+    delete:
+      responses:
+        '200':
+          description: Deleted webhook
+components:
+  schemas:
+    WebhookRequest:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        type:
+          type: string
+        url:
+          type: string
+        is_enabled:
+          type: boolean

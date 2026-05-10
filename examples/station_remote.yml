@@ -1,0 +1,18 @@
+---
+- name: Manage an AzuraCast station remote relay
+  hosts: localhost
+  gather_facts: false
+  vars:
+    azuracast_base_url: "{{ lookup('ansible.builtin.env', 'AZURACAST_BASE_URL') }}"
+    azuracast_api_key: "{{ lookup('ansible.builtin.env', 'AZURACAST_API_KEY') }}"
+
+  tasks:
+    - name: Ensure station remote exists
+      fculpo.azuracast_api.station_remote:
+        base_url: "{{ azuracast_base_url }}"
+        api_key: "{{ azuracast_api_key }}"
+        station_short_name: main
+        display_name: Relay
+        resource:
+          url: https://relay.example.com/live
+          is_visible_on_public_pages: true

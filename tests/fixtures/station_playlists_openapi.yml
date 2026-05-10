@@ -1,0 +1,54 @@
+openapi: 3.0.0
+paths:
+  /api/station/{station_id}/playlists:
+    get:
+      responses:
+        '200':
+          description: Playlist list
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaylistRequest'
+      responses:
+        '200':
+          description: Created playlist
+  /api/station/{station_id}/playlist/{id}:
+    put:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaylistRequest'
+      responses:
+        '200':
+          description: Updated playlist
+    delete:
+      responses:
+        '200':
+          description: Deleted playlist
+components:
+  schemas:
+    PlaylistRequest:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - default
+            - once_per_x_songs
+            - once_per_x_minutes
+        source:
+          type: string
+        order:
+          type: string
+        is_enabled:
+          type: boolean

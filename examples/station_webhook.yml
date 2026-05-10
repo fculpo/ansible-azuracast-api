@@ -1,0 +1,19 @@
+---
+- name: Manage an AzuraCast station webhook
+  hosts: localhost
+  gather_facts: false
+  vars:
+    azuracast_base_url: "{{ lookup('ansible.builtin.env', 'AZURACAST_BASE_URL') }}"
+    azuracast_api_key: "{{ lookup('ansible.builtin.env', 'AZURACAST_API_KEY') }}"
+
+  tasks:
+    - name: Ensure station webhook exists
+      fculpo.azuracast_api.station_webhook:
+        base_url: "{{ azuracast_base_url }}"
+        api_key: "{{ azuracast_api_key }}"
+        station_short_name: main
+        name: Notify
+        resource:
+          type: generic
+          url: https://hooks.example.com/azuracast
+          is_enabled: true

@@ -62,10 +62,15 @@ AzuraCast OpenAPI documents.
   child arrays are excluded from station payloads.
 - `station_mount` manages one station mount matched by `name` under a resolved
   station ID.
+- `station_playlist` manages one station playlist matched by `name` under a
+  resolved station ID.
+- `station_remote` manages one station remote matched by `display_name` under a
+  resolved station ID.
+- `station_webhook` manages one station webhook matched by `name` under a
+  resolved station ID.
 
-Future station-scoped modules should stay explicit public modules unless the
-implemented family proves that a generic public resource module would be
-clearer for users.
+Station-scoped resources use explicit public modules because each resource
+family has a distinct user-facing concept and stable key.
 
 ## Collection-Local Verification
 
@@ -81,6 +86,9 @@ Render module docs from an installed or collection-layout checkout:
 ansible-doc fculpo.azuracast_api.storage_location
 ansible-doc fculpo.azuracast_api.station
 ansible-doc fculpo.azuracast_api.station_mount
+ansible-doc fculpo.azuracast_api.station_playlist
+ansible-doc fculpo.azuracast_api.station_remote
+ansible-doc fculpo.azuracast_api.station_webhook
 ```
 
 Build and sanity-check from a collection layout:

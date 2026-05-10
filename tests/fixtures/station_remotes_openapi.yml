@@ -1,0 +1,46 @@
+openapi: 3.0.0
+paths:
+  /api/station/{station_id}/remotes:
+    get:
+      responses:
+        '200':
+          description: Remote list
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoteRequest'
+      responses:
+        '200':
+          description: Created remote
+  /api/station/{station_id}/remote/{id}:
+    put:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoteRequest'
+      responses:
+        '200':
+          description: Updated remote
+    delete:
+      responses:
+        '200':
+          description: Deleted remote
+components:
+  schemas:
+    RemoteRequest:
+      type: object
+      required:
+        - display_name
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        display_name:
+          type: string
+        url:
+          type: string
+        is_visible_on_public_pages:
+          type: boolean

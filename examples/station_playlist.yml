@@ -1,0 +1,20 @@
+---
+- name: Manage an AzuraCast station playlist
+  hosts: localhost
+  gather_facts: false
+  vars:
+    azuracast_base_url: "{{ lookup('ansible.builtin.env', 'AZURACAST_BASE_URL') }}"
+    azuracast_api_key: "{{ lookup('ansible.builtin.env', 'AZURACAST_API_KEY') }}"
+
+  tasks:
+    - name: Ensure station playlist exists
+      fculpo.azuracast_api.station_playlist:
+        base_url: "{{ azuracast_base_url }}"
+        api_key: "{{ azuracast_api_key }}"
+        station_short_name: main
+        name: Default
+        resource:
+          type: default
+          source: songs
+          order: shuffle
+          is_enabled: true

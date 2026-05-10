@@ -26,6 +26,12 @@ It also provides resource-level modules for direct tasks:
 - `fculpo.azuracast_api.station`: one station matched by `short_name`.
 - `fculpo.azuracast_api.station_mount`: one station mount matched by `name`
   under a resolved station.
+- `fculpo.azuracast_api.station_playlist`: one station playlist matched by
+  `name` under a resolved station.
+- `fculpo.azuracast_api.station_remote`: one station remote matched by
+  `display_name` under a resolved station.
+- `fculpo.azuracast_api.station_webhook`: one station webhook matched by `name`
+  under a resolved station.
 
 It does not install AzuraCast, manage Docker, manage the host operating system,
 upload media, create users, create API keys, or edit the AzuraCast database
@@ -368,6 +374,39 @@ native module results.
       display_name: MP3
       autodj_format: mp3
       autodj_bitrate: 128
+
+- name: Ensure station playlist exists
+  fculpo.azuracast_api.station_playlist:
+    base_url: "https://radio.example.com"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: main
+    name: Default
+    resource:
+      type: default
+      source: songs
+      order: shuffle
+      is_enabled: true
+
+- name: Ensure station remote exists
+  fculpo.azuracast_api.station_remote:
+    base_url: "https://radio.example.com"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: main
+    display_name: Relay
+    resource:
+      url: https://relay.example.com/live
+      is_visible_on_public_pages: true
+
+- name: Ensure station webhook exists
+  fculpo.azuracast_api.station_webhook:
+    base_url: "https://radio.example.com"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: main
+    name: Notify
+    resource:
+      type: generic
+      url: https://hooks.example.com/azuracast
+      is_enabled: true
 ```
 
 Normal updates compare only safe fields. Sensitive write-only fields can be
@@ -471,8 +510,9 @@ ANSIBLE_COLLECTIONS_PATH=/tmp/azuracast-api-collections \
 
 ## Current Limitations
 
-- No dedicated Ansible modules yet; the collection uses roles, `uri`, and filter
-  plugins.
+- Dedicated resource modules exist for storage locations, stations, and
+  station-scoped mounts, playlists, remotes, and webhooks; roles remain the
+  primary whole-instance convergence interface.
 - Desired state uses AzuraCast API field names directly.
 - API coverage is focused on settings, storage locations, stations, mounts,
   playlists, remotes, and webhooks.
