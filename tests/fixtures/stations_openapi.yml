@@ -1,0 +1,57 @@
+openapi: 3.0.0
+paths:
+  /api/admin/stations:
+    get:
+      responses:
+        '200':
+          description: Station list
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StationRequest'
+      responses:
+        '200':
+          description: Created station
+  /api/admin/station/{id}:
+    put:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StationRequest'
+      responses:
+        '200':
+          description: Updated station
+    delete:
+      responses:
+        '200':
+          description: Deleted station
+components:
+  schemas:
+    StationRequest:
+      type: object
+      required:
+        - short_name
+        - name
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        short_name:
+          type: string
+        name:
+          type: string
+        frontend_type:
+          type: string
+          enum:
+            - icecast
+            - shoutcast2
+        media_storage_location:
+          type: integer
+        recordings_storage_location:
+          type: integer
+        admin_password:
+          type: string
+          writeOnly: true

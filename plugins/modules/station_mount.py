@@ -1,0 +1,267 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# Copyright: (c) 2026, fculpo
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+DOCUMENTATION = r'''
+---
+module: station_mount
+short_description: Manage one AzuraCast station mount point
+version_added: "0.2.0"
+description:
+  - Manages a single mount point for one AzuraCast station.
+options:
+  base_url:
+    description:
+      - Base URL for the AzuraCast instance.
+    required: true
+    type: str
+  api_key:
+    description:
+      - AzuraCast API key with permission to manage station mounts.
+    required: true
+    type: str
+  station_short_name:
+    description:
+      - Station short name used to resolve the station ID.
+    type: str
+  station_id:
+    description:
+      - Explicit station ID. When set, no station short-name lookup is needed.
+    type: int
+  name:
+    description:
+      - Stable mount name to manage.
+    required: true
+    type: str
+  resource:
+    description:
+      - Desired mount payload.
+    type: dict
+    default: {}
+  sensitive_resource:
+    description:
+      - Sensitive desired payload fields. These values are excluded from normal drift comparison and diff output.
+    type: dict
+    default: {}
+  openapi_contract:
+    description:
+      - Optional AzuraCast OpenAPI document used to validate mount endpoint capabilities.
+    type: raw
+  state:
+    description:
+      - Whether the mount should exist.
+    type: str
+    choices:
+      - present
+      - absent
+    default: present
+  validate_certs:
+    description:
+      - Whether to validate TLS certificates for HTTPS requests.
+    type: bool
+    default: true
+  timeout:
+    description:
+      - HTTP request timeout in seconds.
+    type: int
+    default: 30
+author:
+  - fculpo (@fculpo)
+'''
+
+EXAMPLES = r'''
+- name: Ensure default mount exists
+  fculpo.azuracast_api.station_mount:
+    base_url: https://radio.example.com
+    api_key: "{{ lookup('ansible.builtin.env', 'AZURACAST_API_KEY') }}"
+    station_short_name: main
+    name: /radio.mp3
+    resource:
+      display_name: MP3
+      autodj_format: mp3
+      autodj_bitrate: 128
+'''
+
+RETURN = r'''
+action:
+  description: Planned or applied action.
+  returned: always
+  type: str
+before:
+  description: Comparable live state before the change.
+  returned: always
+  type: dict
+after:
+  description: Comparable desired state after the change.
+  returned: always
+  type: dict
+resource:
+  description: API resource returned by the applied change, or the live resource for no-op present state.
+  returned: always
+  type: dict
+'''
+
+from ansible.module_utils.basic import AnsibleModule
+
+try:
+    from ansible_collections.fculpo.azuracast_api.plugins.module_utils.azuracast_client import (
+        AzuraCastApiError,
+        AzuraCastClient,
+    )
+    from ansible_collections.fculpo.azuracast_api.plugins.module_utils import (
+        azuracast_planning as planning,
+    )
+    from ansible_collections.fculpo.azuracast_api.plugins.module_utils.azuracast_resources import (
+        ResourceSpec,
+        reconcile_resource,
+    )
+except ImportError:
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    def _load_module_util(name):
+        if name in sys.modules:
+            return sys.modules[name]
+        module_path = Path(__file__).resolve().parents[1] / "module_utils" / f"{name}.py"
+        spec = importlib.util.spec_from_file_location(name, module_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    azuracast_client = _load_module_util("azuracast_client")
+    planning = _load_module_util("azuracast_planning")
+    azuracast_resources = _load_module_util("azuracast_resources")
+    AzuraCastApiError = azuracast_client.AzuraCastApiError
+    AzuraCastClient = azuracast_client.AzuraCastClient
+    ResourceSpec = azuracast_resources.ResourceSpec
+    reconcile_resource = azuracast_resources.reconcile_resource
+
+
+def station_mount_spec():
+    return ResourceSpec(
+        family="station mount",
+        collection_path="/api/station/{station_id}/mounts",
+        item_path="/api/station/{station_id}/mount/{id}",
+        key="name",
+        scope_fields=("station_id",),
+    )
+
+
+def build_desired_station_mount(name, resource, sensitive_resource=None):
+    desired = dict(resource or {})
+    desired.update(sensitive_resource or {})
+    if "name" in desired and desired["name"] != name:
+        raise planning.AzuraCastPlanningError(
+            "Station mount resource name must match the module name option"
+        )
+    desired["name"] = name
+    return desired
+
+
+def resolve_station_id(client, station_short_name=None, station_id=None):
+    if station_id is not None:
+        return station_id
+    if not station_short_name:
+        raise planning.AzuraCastPlanningError(
+            "station_short_name or station_id is required"
+        )
+
+    stations = client.list_resources("/api/admin/stations", {})
+    stations_by_short_name = planning.azuracast_index_by(stations, "short_name")
+    station = stations_by_short_name.get(station_short_name)
+    if station is None:
+        raise planning.AzuraCastPlanningError(
+            f"Unknown AzuraCast station short_name: {station_short_name}"
+        )
+    station_id = station.get("id")
+    if station_id is None:
+        raise planning.AzuraCastPlanningError(
+            f"AzuraCast station is missing id: {station_short_name}"
+        )
+    return station_id
+
+
+def apply_station_mount(
+    client,
+    desired,
+    station_short_name=None,
+    station_id=None,
+    state="present",
+    check_mode=False,
+    openapi_contract=None,
+):
+    scope = {
+        "station_id": resolve_station_id(
+            client,
+            station_short_name=station_short_name,
+            station_id=station_id,
+        )
+    }
+
+    return reconcile_resource(
+        client,
+        station_mount_spec(),
+        desired,
+        state=state,
+        check_mode=check_mode,
+        openapi_contract=openapi_contract,
+        scope=scope,
+    )
+
+
+def main():
+    module = AnsibleModule(
+        argument_spec={
+            "base_url": {"type": "str", "required": True},
+            "api_key": {"type": "str", "required": True, "no_log": True},
+            "station_short_name": {"type": "str"},
+            "station_id": {"type": "int"},
+            "name": {"type": "str", "required": True},
+            "resource": {"type": "dict", "default": {}},
+            "sensitive_resource": {"type": "dict", "default": {}, "no_log": True},
+            "state": {
+                "type": "str",
+                "default": "present",
+                "choices": ["present", "absent"],
+            },
+            "validate_certs": {"type": "bool", "default": True},
+            "timeout": {"type": "int", "default": 30},
+            "openapi_contract": {"type": "raw", "default": None},
+        },
+        required_one_of=[("station_short_name", "station_id")],
+        supports_check_mode=True,
+    )
+
+    try:
+        desired = build_desired_station_mount(
+            module.params["name"],
+            module.params["resource"],
+            module.params["sensitive_resource"],
+        )
+        client = AzuraCastClient(
+            module.params["base_url"],
+            module.params["api_key"],
+            validate_certs=module.params["validate_certs"],
+            timeout=module.params["timeout"],
+        )
+        result = apply_station_mount(
+            client,
+            desired,
+            station_short_name=module.params["station_short_name"],
+            station_id=module.params["station_id"],
+            state=module.params["state"],
+            check_mode=module.check_mode,
+            openapi_contract=module.params["openapi_contract"],
+        )
+    except (AzuraCastApiError, planning.AzuraCastPlanningError, KeyError) as exc:
+        module.fail_json(msg=str(exc))
+
+    module.exit_json(**result)
+
+
+if __name__ == "__main__":
+    main()

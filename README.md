@@ -19,6 +19,14 @@ The collection provides these roles:
 - `fculpo.azuracast_api.station_resources`: station-scoped mounts, playlists,
   remotes, and webhooks.
 
+It also provides resource-level modules for direct tasks:
+
+- `fculpo.azuracast_api.storage_location`: one storage location matched by
+  `type`.
+- `fculpo.azuracast_api.station`: one station matched by `short_name`.
+- `fculpo.azuracast_api.station_mount`: one station mount matched by `name`
+  under a resolved station.
+
 It does not install AzuraCast, manage Docker, manage the host operating system,
 upload media, create users, create API keys, or edit the AzuraCast database
 directly.
@@ -320,11 +328,53 @@ Using a filter plugin for this is idiomatic Ansible: filters are meant for data
 manipulation in templates, variables, and playbooks. Keeping this logic in
 Python also makes it unit-testable without contacting AzuraCast.
 
-The trade-off is that this collection currently uses generic `uri` tasks plus
-planning filters rather than custom Ansible modules for each AzuraCast resource.
-That is a pragmatic early shape. If the collection grows, dedicated modules may
-become a better public interface for resource-level idempotency, richer return
-values, and first-class `ansible-doc` pages per resource.
+The roles still use these filters for whole-instance planning. Stable
+resource-level modules reuse the same planning helpers so direct module tasks
+and role convergence do not drift apart.
+
+## Resource Modules
+
+Use roles when you want whole-instance convergence from collection variables.
+Use modules when a playbook needs to manage one resource directly and receive
+native module results.
+
+```yaml
+- name: Ensure backup storage exists
+  fculpo.azuracast_api.storage_location:
+    base_url: "https://radio.example.com"
+    api_key: "{{ azuracast_api_key }}"
+    type: backup
+    resource:
+      adapter: local
+      path: /var/azuracast/backups
+
+- name: Ensure station exists
+  fculpo.azuracast_api.station:
+    base_url: "https://radio.example.com"
+    api_key: "{{ azuracast_api_key }}"
+    short_name: main
+    resource:
+      name: Main Radio
+      media_storage_location:
+        type: station_media
+
+- name: Ensure station mount exists
+  fculpo.azuracast_api.station_mount:
+    base_url: "https://radio.example.com"
+    api_key: "{{ azuracast_api_key }}"
+    station_short_name: main
+    name: /radio.mp3
+    resource:
+      display_name: MP3
+      autodj_format: mp3
+      autodj_bitrate: 128
+```
+
+Normal updates compare only safe fields. Sensitive write-only fields can be
+provided through `sensitive_resource`; they are used for create payloads but are
+excluded from normal drift comparison and diff output. OpenAPI documents can be
+passed through `openapi_contract` to validate endpoint methods and payload
+fields before mutation.
 
 ## Discovery
 

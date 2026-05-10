@@ -1,0 +1,20 @@
+---
+- name: Manage an AzuraCast station mount
+  hosts: localhost
+  gather_facts: false
+  vars:
+    azuracast_base_url: "{{ lookup('ansible.builtin.env', 'AZURACAST_BASE_URL') }}"
+    azuracast_api_key: "{{ lookup('ansible.builtin.env', 'AZURACAST_API_KEY') }}"
+
+  tasks:
+    - name: Ensure station mount exists
+      fculpo.azuracast_api.station_mount:
+        base_url: "{{ azuracast_base_url }}"
+        api_key: "{{ azuracast_api_key }}"
+        station_short_name: main
+        name: /radio.mp3
+        resource:
+          display_name: MP3
+          autodj_format: mp3
+          autodj_bitrate: 128
+          enable_autodj: true

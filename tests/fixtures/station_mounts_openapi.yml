@@ -1,0 +1,53 @@
+openapi: 3.0.0
+paths:
+  /api/station/{station_id}/mounts:
+    get:
+      responses:
+        '200':
+          description: Mount list
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MountRequest'
+      responses:
+        '200':
+          description: Created mount
+  /api/station/{station_id}/mount/{id}:
+    put:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MountRequest'
+      responses:
+        '200':
+          description: Updated mount
+    delete:
+      responses:
+        '200':
+          description: Deleted mount
+components:
+  schemas:
+    MountRequest:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        display_name:
+          type: string
+        autodj_format:
+          type: string
+          enum:
+            - mp3
+            - aac
+        autodj_bitrate:
+          type: integer
+        enable_autodj:
+          type: boolean

@@ -1,0 +1,64 @@
+openapi: 3.0.0
+paths:
+  /api/admin/storage_locations:
+    get:
+      responses:
+        "200":
+          description: Storage locations
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StorageLocationRequest"
+      responses:
+        "200":
+          description: Created storage location
+  /api/admin/storage_location/{id}:
+    put:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StorageLocationRequest"
+      responses:
+        "200":
+          description: Updated storage location
+    delete:
+      responses:
+        "200":
+          description: Deleted storage location
+components:
+  schemas:
+    StorageLocationRequest:
+      type: object
+      required:
+        - type
+        - adapter
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        links:
+          type: object
+          readOnly: true
+        type:
+          type: string
+          enum:
+            - backup
+            - station_media
+        adapter:
+          type: string
+          enum:
+            - local
+            - s3
+        path:
+          type: string
+        s3Bucket:
+          type: string
+        s3CredentialKey:
+          type: string
+          writeOnly: true
+        s3CredentialSecret:
+          type: string
+          writeOnly: true

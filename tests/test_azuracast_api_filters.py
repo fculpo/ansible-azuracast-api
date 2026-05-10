@@ -20,6 +20,7 @@ azuracast_index_by = azuracast_api.azuracast_index_by
 azuracast_plan_actions = azuracast_api.azuracast_plan_actions
 azuracast_redact = azuracast_api.azuracast_redact
 azuracast_sensitive_update_plan = azuracast_api.azuracast_sensitive_update_plan
+azuracast_sensitive_shape = azuracast_api.azuracast_sensitive_shape
 azuracast_station_api_payloads = azuracast_api.azuracast_station_api_payloads
 azuracast_station_resource_plans = azuracast_api.azuracast_station_resource_plans
 azuracast_strip_readonly = azuracast_api.azuracast_strip_readonly
@@ -229,6 +230,22 @@ def test_sensitive_update_plan_ignores_resources_without_sensitive_fields():
     live = [{"id": 8, "type": "backup"}]
 
     assert azuracast_sensitive_update_plan(desired, live, "type") == []
+
+
+def test_sensitive_shape_keeps_only_sensitive_values():
+    payload = {
+        "type": "backup",
+        "adapter": "s3",
+        "s3CredentialKey": "key",
+        "s3CredentialSecret": "secret",
+        "nested": {"token": "secret", "safe": "visible"},
+    }
+
+    assert azuracast_sensitive_shape(payload) == {
+        "s3CredentialKey": "key",
+        "s3CredentialSecret": "secret",
+        "nested": {"token": "secret"},
+    }
 
 
 def test_desired_shape_keeps_only_desired_keys_recursively():

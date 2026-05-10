@@ -1,0 +1,19 @@
+---
+- name: Manage an AzuraCast station
+  hosts: localhost
+  gather_facts: false
+  vars:
+    azuracast_base_url: "{{ lookup('ansible.builtin.env', 'AZURACAST_BASE_URL') }}"
+    azuracast_api_key: "{{ lookup('ansible.builtin.env', 'AZURACAST_API_KEY') }}"
+
+  tasks:
+    - name: Ensure station exists
+      fculpo.azuracast_api.station:
+        base_url: "{{ azuracast_base_url }}"
+        api_key: "{{ azuracast_api_key }}"
+        short_name: main
+        resource:
+          name: Main Radio
+          frontend_type: icecast
+          media_storage_location:
+            type: station_media

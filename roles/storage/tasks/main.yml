@@ -45,38 +45,36 @@
     - storage_rotate_credentials
 
 - name: Create missing storage locations
-  ansible.builtin.uri:
-    url: "{{ azuracast_api_base_url }}/api/admin/storage_locations"
-    method: POST
-    headers: "{{ azuracast_api_headers }}"
-    body_format: json
-    body: "{{ item }}"
+  fculpo.azuracast_api.storage_location:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    type: "{{ item.type }}"
+    resource: "{{ item }}"
+    state: present
     validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
     timeout: "{{ azuracast_api.timeout | default(30) }}"
-    return_content: true
-    status_code: [200]
   loop: "{{ azuracast_storage_plan['create'] }}"
+  loop_control:
+    label: "{{ item.type }}"
   delegate_to: localhost
   become: false
   no_log: "{{ azuracast_api_hide_sensitive_logs }}"
-  when: not ansible_check_mode
 
 - name: Update changed storage locations
-  ansible.builtin.uri:
-    url: "{{ azuracast_api_base_url }}/api/admin/storage_location/{{ item.id }}"
-    method: PUT
-    headers: "{{ azuracast_api_headers }}"
-    body_format: json
-    body: "{{ item.after }}"
+  fculpo.azuracast_api.storage_location:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    type: "{{ item.key }}"
+    resource: "{{ item.after }}"
+    state: present
     validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
     timeout: "{{ azuracast_api.timeout | default(30) }}"
-    return_content: true
-    status_code: [200]
   loop: "{{ azuracast_storage_plan['update'] }}"
+  loop_control:
+    label: "{{ item.key }}"
   delegate_to: localhost
   become: false
   no_log: "{{ azuracast_api_hide_sensitive_logs }}"
-  when: not ansible_check_mode
 
 - name: Rotate storage location credentials only when explicitly tagged
   ansible.builtin.uri:
@@ -101,16 +99,16 @@
     - storage_rotate_credentials
 
 - name: Delete unmanaged storage locations only when explicitly allowed
-  ansible.builtin.uri:
-    url: "{{ azuracast_api_base_url }}/api/admin/storage_location/{{ item.id }}"
-    method: DELETE
-    headers: "{{ azuracast_api_headers }}"
+  fculpo.azuracast_api.storage_location:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    type: "{{ item.type }}"
+    state: absent
     validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
     timeout: "{{ azuracast_api.timeout | default(30) }}"
-    return_content: true
-    status_code: [200]
   loop: "{{ azuracast_storage_plan | fculpo.azuracast_api.azuracast_destructive_deletes(azuracast_destructive_sync, azuracast_destructive_allow, 'storage_locations') }}"
+  loop_control:
+    label: "{{ item.type }}"
   delegate_to: localhost
   become: false
   no_log: "{{ azuracast_api_hide_sensitive_logs }}"
-  when: not ansible_check_mode

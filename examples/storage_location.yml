@@ -1,0 +1,17 @@
+---
+- name: Manage an AzuraCast storage location
+  hosts: localhost
+  gather_facts: false
+  vars:
+    azuracast_base_url: "{{ lookup('ansible.builtin.env', 'AZURACAST_BASE_URL') }}"
+    azuracast_api_key: "{{ lookup('ansible.builtin.env', 'AZURACAST_API_KEY') }}"
+
+  tasks:
+    - name: Ensure backup storage location exists
+      fculpo.azuracast_api.storage_location:
+        base_url: "{{ azuracast_base_url }}"
+        api_key: "{{ azuracast_api_key }}"
+        type: backup
+        resource:
+          adapter: local
+          path: /var/azuracast/backups

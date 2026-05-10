@@ -1,277 +1,69 @@
 from ansible.errors import AnsibleFilterError
 
+try:
+    from ansible_collections.fculpo.azuracast_api.plugins.module_utils import (
+        azuracast_planning as planning,
+    )
+except ImportError:
+    import importlib.util
+    from pathlib import Path
 
-READONLY_KEYS = {
-    "id",
-    "links",
-    "listeners_total",
-    "listeners_unique",
-    "num_songs",
-    "played_at",
-    "queue_reset_at",
-    "station_id",
-    "total_length",
-    "created_at",
-    "updated_at",
-    "createdAt",
-    "updatedAt",
-    "api_url",
-    "public_url",
-    "art",
-    "art_updated_at",
-}
-
-SENSITIVE_FRAGMENTS = (
-    "authorization",
-    "api_key",
-    "apikey",
-    "token",
-    "secret",
-    "password",
-    "credential",
-)
-
-STATION_RESOURCE_KEYS = {"mounts", "playlists", "remotes", "webhooks"}
+    PLANNING_PATH = (
+        Path(__file__).resolve().parents[1]
+        / "module_utils"
+        / "azuracast_planning.py"
+    )
+    spec = importlib.util.spec_from_file_location("azuracast_planning", PLANNING_PATH)
+    planning = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(planning)
 
 
-def _is_storage_reference_key(key):
-    return str(key).endswith("_storage_location")
+def _filter_error(func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except planning.AzuraCastPlanningError as exc:
+        raise AnsibleFilterError(str(exc)) from exc
 
 
-def _is_sensitive_key(key):
-    lowered = str(key).lower()
-    return any(fragment in lowered for fragment in SENSITIVE_FRAGMENTS)
-
-
-def azuracast_strip_readonly(value):
-    if isinstance(value, list):
-        return [azuracast_strip_readonly(item) for item in value]
-
-    if isinstance(value, dict):
-        stripped = {}
-        for key, item in value.items():
-            if key in READONLY_KEYS:
-                continue
-            stripped[key] = azuracast_strip_readonly(item)
-        return stripped
-
-    return value
-
-
-def azuracast_normalize(value):
-    value = azuracast_strip_readonly(value)
-
-    if isinstance(value, list):
-        return [azuracast_normalize(item) for item in value]
-
-    if isinstance(value, dict):
-        return {
-            key: azuracast_normalize(value[key])
-            for key in sorted(value.keys())
-            if value[key] is not None
-        }
-
-    return value
-
-
-def azuracast_compare_shape(value):
-    value = azuracast_strip_readonly(value)
-
-    if isinstance(value, list):
-        return [azuracast_compare_shape(item) for item in value]
-
-    if isinstance(value, dict):
-        return {
-            key: azuracast_compare_shape(value[key])
-            for key in sorted(value.keys())
-            if value[key] is not None and not _is_sensitive_key(key)
-        }
-
-    return value
-
-
-def azuracast_desired_shape(value, desired):
-    if isinstance(value, dict) and isinstance(desired, dict):
-        return {
-            key: azuracast_desired_shape(value[key], desired[key])
-            for key in desired.keys()
-            if key in value
-        }
-
-    return value
+azuracast_strip_readonly = planning.azuracast_strip_readonly
+azuracast_normalize = planning.azuracast_normalize
+azuracast_compare_shape = planning.azuracast_compare_shape
+azuracast_desired_shape = planning.azuracast_desired_shape
+azuracast_destructive_deletes = planning.azuracast_destructive_deletes
+azuracast_redact = planning.azuracast_redact
+azuracast_sensitive_shape = planning.azuracast_sensitive_shape
 
 
 def azuracast_index_by(resources, key):
-    indexed = {}
-    for resource in resources or []:
-        resource_key = resource.get(key)
-        if resource_key is None:
-            raise AnsibleFilterError(f"AzuraCast resource is missing key: {key}")
-        if resource_key in indexed:
-            raise AnsibleFilterError(f"Duplicate AzuraCast resource key: {resource_key}")
-        indexed[resource_key] = resource
-    return indexed
+    return _filter_error(planning.azuracast_index_by, resources, key)
 
 
 def azuracast_plan_actions(desired, live, key):
-    desired_by_key = azuracast_index_by(desired or [], key)
-    live_by_key = azuracast_index_by(live or [], key)
-    plan = {"create": [], "update": [], "noop": [], "unmanaged": []}
-
-    for resource_key, desired_resource in desired_by_key.items():
-        live_resource = live_by_key.get(resource_key)
-        if live_resource is None:
-            plan["create"].append(desired_resource)
-            continue
-
-        desired_normalized = azuracast_compare_shape(desired_resource)
-        live_normalized = azuracast_desired_shape(
-            azuracast_compare_shape(live_resource),
-            desired_normalized,
-        )
-        if desired_normalized == live_normalized:
-            plan["noop"].append({"id": live_resource.get("id"), "key": resource_key})
-            continue
-
-        plan["update"].append(
-            {
-                "id": live_resource.get("id"),
-                "key": resource_key,
-                "before": live_normalized,
-                "after": desired_normalized,
-            }
-        )
-
-    for resource_key, live_resource in live_by_key.items():
-        if resource_key not in desired_by_key:
-            plan["unmanaged"].append(live_resource)
-
-    return plan
-
-
-def _has_sensitive_field(value):
-    if isinstance(value, list):
-        return any(_has_sensitive_field(item) for item in value)
-
-    if isinstance(value, dict):
-        return any(
-            _is_sensitive_key(key) or _has_sensitive_field(item)
-            for key, item in value.items()
-        )
-
-    return False
+    return _filter_error(planning.azuracast_plan_actions, desired, live, key)
 
 
 def azuracast_sensitive_update_plan(desired, live, key):
-    live_by_key = azuracast_index_by(live or [], key)
-    updates = []
-
-    for desired_resource in desired or []:
-        if not _has_sensitive_field(desired_resource):
-            continue
-
-        resource_key = desired_resource.get(key)
-        live_resource = live_by_key.get(resource_key)
-        if live_resource is None:
-            continue
-
-        updates.append(
-            {
-                "id": live_resource.get("id"),
-                "key": resource_key,
-                "after": desired_resource,
-            }
-        )
-
-    return updates
-
-
-def azuracast_destructive_deletes(plan, destructive_sync, destructive_allow, family):
-    if not destructive_sync:
-        return []
-    if family not in (destructive_allow or []):
-        return []
-    return plan.get("unmanaged", [])
-
-
-def azuracast_redact(value):
-    if isinstance(value, list):
-        return [azuracast_redact(item) for item in value]
-
-    if isinstance(value, dict):
-        redacted = {}
-        for key, item in value.items():
-            if _is_sensitive_key(key):
-                redacted[key] = "********"
-            else:
-                redacted[key] = azuracast_redact(item)
-        return redacted
-
-    return value
+    return _filter_error(planning.azuracast_sensitive_update_plan, desired, live, key)
 
 
 def azuracast_resolve_storage_references(value, storage_locations):
-    storage_locations_by_type = azuracast_index_by(storage_locations or [], "type")
-
-    def resolve(item, parent_key=None):
-        if isinstance(item, list):
-            return [resolve(child) for child in item]
-
-        if isinstance(item, dict):
-            if _is_storage_reference_key(parent_key):
-                storage_type = item.get("type")
-                if storage_type is None:
-                    raise AnsibleFilterError(
-                        f"AzuraCast storage reference is missing type: {parent_key}"
-                    )
-
-                storage_location = storage_locations_by_type.get(storage_type)
-                if storage_location is None:
-                    raise AnsibleFilterError(
-                        f"Unknown AzuraCast storage location type: {storage_type}"
-                    )
-
-                storage_id = storage_location.get("id")
-                if storage_id is None:
-                    raise AnsibleFilterError(
-                        f"AzuraCast storage location is missing id: {storage_type}"
-                    )
-
-                return storage_id
-
-            return {key: resolve(child, key) for key, child in item.items()}
-
-        return item
-
-    return resolve(value)
+    return _filter_error(
+        planning.azuracast_resolve_storage_references,
+        value,
+        storage_locations,
+    )
 
 
 def azuracast_station_api_payloads(stations):
-    return [
-        {
-            key: item
-            for key, item in station.items()
-            if key not in STATION_RESOURCE_KEYS
-        }
-        for station in stations or []
-    ]
+    return planning.azuracast_station_api_payloads(stations)
 
 
 def azuracast_station_resource_plans(stations, live_results):
-    plans = []
-    stations_by_key = azuracast_index_by(stations or [], "short_name")
-
-    for live_result in live_results or []:
-        station_key = live_result["station"]
-        family = live_result["family"]
-        key = live_result["key"]
-        desired = stations_by_key.get(station_key, {}).get(family, [])
-        live = live_result.get("resources", [])
-        plan = azuracast_plan_actions(desired, live, key)
-        plan.update({"station": station_key, "family": family, "key": key})
-        plans.append(plan)
-
-    return plans
+    return _filter_error(
+        planning.azuracast_station_resource_plans,
+        stations,
+        live_results,
+    )
 
 
 class FilterModule:
@@ -286,6 +78,7 @@ class FilterModule:
             "azuracast_sensitive_update_plan": azuracast_sensitive_update_plan,
             "azuracast_destructive_deletes": azuracast_destructive_deletes,
             "azuracast_redact": azuracast_redact,
+            "azuracast_sensitive_shape": azuracast_sensitive_shape,
             "azuracast_resolve_storage_references": azuracast_resolve_storage_references,
             "azuracast_station_api_payloads": azuracast_station_api_payloads,
             "azuracast_station_resource_plans": azuracast_station_resource_plans,
