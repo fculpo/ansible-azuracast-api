@@ -232,12 +232,13 @@ Each resource role follows the same pattern:
    - `noop`: desired resources already matching live API state.
    - `unmanaged`: live resources absent from desired state.
 6. Print the plan with sensitive values redacted.
-7. Apply creates, updates, and allowed deletes only when not running in check
-   mode.
+7. Apply creates, updates, and allowed deletes through resource modules where a
+   stable module exists. These module-backed paths report planned changes in
+   check mode without mutating AzuraCast.
 
 The normal `--check --diff` workflow is therefore a read-only planning run. It
-uses API `GET` requests and local data transformations, then skips mutation
-tasks because `ansible_check_mode` is true.
+uses API `GET` requests and local data transformations, then lets module-backed
+mutation tasks report `changed` and diffs through native check mode.
 
 ## Safety Model
 
@@ -299,7 +300,9 @@ ansible-playbook -i inventory.yml playbook.yml --tags storage_rotate_credentials
 ```
 
 The first command reports which existing storage locations would receive the
-credential payload. The second command performs the update.
+credential payload. The second command performs the update. This remains an
+explicit tagged `ansible.builtin.uri` path because write-only credentials are
+excluded from normal module drift detection.
 
 ## The Filter Plugin
 
@@ -337,6 +340,11 @@ Python also makes it unit-testable without contacting AzuraCast.
 The roles still use these filters for whole-instance planning. Stable
 resource-level modules reuse the same planning helpers so direct module tasks
 and role convergence do not drift apart.
+
+Settings, API preflight/OpenAPI discovery, and storage credential rotation are
+intentionally not resource modules. Settings are a singleton partial-update
+surface, API tasks are live checks and exports, and credential rotation is an
+audited opt-in write path for sensitive fields.
 
 ## Resource Modules
 
@@ -516,8 +524,11 @@ ANSIBLE_COLLECTIONS_PATH=/tmp/azuracast-api-collections \
 - Dedicated resource modules exist for storage locations, stations, and
   station-scoped mounts, playlists, remotes, and webhooks; roles remain the
   primary whole-instance convergence interface.
+- No additional resource modules are required for the current managed inventory
+  scope. New modules should be driven by actual inventory needs, not by the
+  broader AzuraCast OpenAPI document.
 - Desired state uses AzuraCast API field names directly.
 - API coverage is focused on settings, storage locations, stations, mounts,
   playlists, remotes, and webhooks.
-- User, role, API key, media, and operational broadcast actions are outside the
-  current scope.
+- User, role, permission, API key, media, podcast, streamer, broadcast, report,
+  and operational action endpoints are outside the current scope.

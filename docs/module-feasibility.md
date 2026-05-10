@@ -15,10 +15,13 @@ shape.
 
 ## Current Shape
 
-The collection currently exposes roles for API preflight, settings, storage
-locations, stations, and station-scoped resources. Those roles use
-`ansible.builtin.uri` for network calls and `plugins/filter/azuracast_api.py`
-for deterministic local planning.
+The collection exposes roles for API preflight, settings, storage locations,
+stations, and station-scoped resources. Roles keep whole-instance planning in
+YAML and filters, while stable resource mutations now call direct modules for
+storage locations, stations, mounts, playlists, remotes, and webhooks. Singleton
+settings, API preflight/OpenAPI discovery, and explicit storage credential
+rotation still use `ansible.builtin.uri` because they are orchestration or
+opt-in write paths rather than resource reconciliation.
 
 The important existing behavior is not just HTTP transport. The collection also
 handles:
@@ -90,14 +93,14 @@ present a whole-instance plan in check mode.
 
 ## Recommended Direction
 
-Do not switch everything at once. Build one module as a proof of concept and
-keep the roles as the supported high-level interface.
+Do not switch everything at once. Keep roles as the supported high-level
+interface and expand modules only resource by resource when the module contract
+is clearer than the role path.
 
-The first module should be a simple but representative resource. Storage
-locations are a strong candidate because they already exercise create, update,
-delete safety, sensitive-field handling, and stable matching by type. A station
-resource such as a mount is also useful, but it introduces station scoping and
-should probably come after the first module pattern is stable.
+The current proof-of-concept path has already covered the collection's managed
+resource inventory: storage locations, stations, and station-scoped mounts,
+playlists, remotes, and webhooks. That does not imply the rest of the AzuraCast
+OpenAPI document should become modules.
 
 The proof of concept should answer these questions:
 
@@ -107,9 +110,10 @@ The proof of concept should answer these questions:
 - Can roles call the module without losing whole-instance planning ergonomics?
 - Can shared code avoid duplicating planning logic between filters and modules?
 
-If the answer is yes, the collection can expand modules resource by resource.
-If the answer is no, the current role/filter interface should remain primary
-and the module idea should be deferred.
+If the answer is yes for a new managed inventory need, the collection can add a
+module for that resource family. If the answer is no, the current role/filter
+or `uri` interface should remain primary and the module idea should be
+deferred.
 
 ## Migration Shape
 
@@ -126,6 +130,11 @@ A safe migration would look like this:
 
 This keeps compatibility while testing whether modules are actually an
 improvement.
+
+For the current inventory scope, the migration has reached that endpoint:
+resource-level modules exist for storage locations, stations, mounts,
+playlists, remotes, and webhooks. Further module work should start from a real
+inventory requirement, not from enumerating OpenAPI endpoints.
 
 ## Effort Assessment
 

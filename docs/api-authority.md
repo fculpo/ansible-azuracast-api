@@ -22,7 +22,9 @@ ansible-playbook -i inventory.yml playbook.yml --tags storage_rotate_credentials
 
 This tag runs API preflight, fetches live storage locations, reports the storage
 locations that will receive the desired credential payload, and then updates
-only those locations on a non-check run.
+only those locations on a non-check run. The rotation task intentionally stays
+an explicit `ansible.builtin.uri` PUT path instead of a normal module action, so
+credential writes remain separate from idempotent resource convergence.
 
 ## Destructive Authority Rollout
 

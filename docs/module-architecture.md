@@ -72,6 +72,29 @@ AzuraCast OpenAPI documents.
 Station-scoped resources use explicit public modules because each resource
 family has a distinct user-facing concept and stable key.
 
+The current managed inventory scope is complete at the resource-module layer:
+storage locations, stations, station mounts, station playlists, station
+remotes, and station webhooks all have direct modules. Additional AzuraCast API
+surfaces are not a module backlog by default; new modules should be added only
+when a managed inventory need meets the criteria in `docs/module-feasibility.md`.
+
+## URI-Retained Surfaces
+
+Some role paths intentionally remain `ansible.builtin.uri` orchestration rather
+than resource modules:
+
+- `roles/settings` manages a singleton partial-update surface. It fetches live
+  settings, resolves declared storage references, compares only declared
+  fields, and PUTs only when those fields differ. There is no stable resource
+  identity or delete lifecycle for a module to own.
+- `roles/api` performs authentication preflight, live OpenAPI validation, and
+  sanitized discovery exports. Those are checks and exports, not resource
+  reconciliation.
+- Storage credential rotation remains the explicit
+  `storage_rotate_credentials` tagged path. Sensitive write-only fields are
+  excluded from normal module drift, so credential pushes stay opt-in and
+  auditable.
+
 ## Collection-Local Verification
 
 Run unit tests from the collection checkout:
