@@ -46,50 +46,48 @@
       unmanaged: "{{ azuracast_stations_plan['unmanaged'] | fculpo.azuracast_api.azuracast_redact }}"
 
 - name: Create missing stations
-  ansible.builtin.uri:
-    url: "{{ azuracast_api_base_url }}/api/admin/stations"
-    method: POST
-    headers: "{{ azuracast_api_headers }}"
-    body_format: json
-    body: "{{ item }}"
+  fculpo.azuracast_api.station:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    short_name: "{{ item.short_name }}"
+    resource: "{{ item }}"
+    state: present
     validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
     timeout: "{{ azuracast_api.timeout | default(30) }}"
-    return_content: true
-    status_code: [200]
   loop: "{{ azuracast_stations_plan['create'] }}"
+  loop_control:
+    label: "{{ item.short_name }}"
   delegate_to: localhost
   become: false
   no_log: "{{ azuracast_api_hide_sensitive_logs }}"
-  when: not ansible_check_mode
 
 - name: Update changed stations
-  ansible.builtin.uri:
-    url: "{{ azuracast_api_base_url }}/api/admin/station/{{ item.id }}"
-    method: PUT
-    headers: "{{ azuracast_api_headers }}"
-    body_format: json
-    body: "{{ item.after }}"
+  fculpo.azuracast_api.station:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    short_name: "{{ item.key }}"
+    resource: "{{ item.after }}"
+    state: present
     validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
     timeout: "{{ azuracast_api.timeout | default(30) }}"
-    return_content: true
-    status_code: [200]
   loop: "{{ azuracast_stations_plan['update'] }}"
+  loop_control:
+    label: "{{ item.key }}"
   delegate_to: localhost
   become: false
   no_log: "{{ azuracast_api_hide_sensitive_logs }}"
-  when: not ansible_check_mode
 
 - name: Delete unmanaged stations only when explicitly allowed
-  ansible.builtin.uri:
-    url: "{{ azuracast_api_base_url }}/api/admin/station/{{ item.id }}"
-    method: DELETE
-    headers: "{{ azuracast_api_headers }}"
+  fculpo.azuracast_api.station:
+    base_url: "{{ azuracast_api_base_url }}"
+    api_key: "{{ azuracast_api_key }}"
+    short_name: "{{ item.short_name }}"
+    state: absent
     validate_certs: "{{ azuracast_api.validate_certs | default(true) }}"
     timeout: "{{ azuracast_api.timeout | default(30) }}"
-    return_content: true
-    status_code: [200]
   loop: "{{ azuracast_stations_plan | fculpo.azuracast_api.azuracast_destructive_deletes(azuracast_destructive_sync, azuracast_destructive_allow, 'stations') }}"
+  loop_control:
+    label: "{{ item.short_name }}"
   delegate_to: localhost
   become: false
   no_log: "{{ azuracast_api_hide_sensitive_logs }}"
-  when: not ansible_check_mode

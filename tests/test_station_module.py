@@ -107,6 +107,40 @@ def test_station_check_mode_reports_without_mutation():
     assert client.created == []
 
 
+def test_station_check_mode_reports_update_without_mutation():
+    desired = {"short_name": "main", "name": "Main Radio"}
+    client = FakeStationClient(live_stations=[{"id": 3, "short_name": "main", "name": "Old"}])
+
+    result = station.apply_station(client, desired, check_mode=True)
+
+    assert result["changed"] is True
+    assert result["action"] == "update"
+    assert result["before"] == {"short_name": "main", "name": "Old"}
+    assert result["after"] == desired
+    assert client.created == []
+    assert client.updated == []
+    assert client.deleted == []
+
+
+def test_station_check_mode_reports_delete_without_mutation():
+    client = FakeStationClient(live_stations=[{"id": 3, "short_name": "main"}])
+
+    result = station.apply_station(
+        client,
+        {"short_name": "main"},
+        state="absent",
+        check_mode=True,
+    )
+
+    assert result["changed"] is True
+    assert result["action"] == "delete"
+    assert result["before"] == {"short_name": "main"}
+    assert result["after"] is None
+    assert client.created == []
+    assert client.updated == []
+    assert client.deleted == []
+
+
 def test_build_desired_station_omits_station_scoped_child_arrays():
     desired = station.build_desired_station(
         {
@@ -114,10 +148,24 @@ def test_build_desired_station_omits_station_scoped_child_arrays():
             "name": "Main Radio",
             "mounts": [{"name": "/radio.mp3"}],
             "playlists": [{"name": "Default"}],
+            "remotes": [{"display_name": "Relay"}],
+            "webhooks": [{"name": "Deploy"}],
         }
     )
 
     assert desired == {"short_name": "main", "name": "Main Radio"}
+
+
+def test_build_desired_station_rejects_short_name_option_mismatch():
+    with pytest.raises(station.planning.AzuraCastPlanningError) as exc:
+        station.build_desired_station(
+            {"short_name": "other", "name": "Main Radio"},
+            short_name="main",
+        )
+
+    assert str(exc.value) == (
+        "Station resource short_name must match the module short_name option"
+    )
 
 
 def test_build_desired_station_merges_sensitive_resource():
@@ -166,6 +214,9 @@ def test_apply_station_fails_for_unknown_storage_reference_type():
         station.apply_station(client, desired)
 
     assert str(exc.value) == "Unknown AzuraCast storage location type: station_media"
+    assert client.created == []
+    assert client.updated == []
+    assert client.deleted == []
 
 
 def test_station_openapi_contract_rejects_unsupported_field():
