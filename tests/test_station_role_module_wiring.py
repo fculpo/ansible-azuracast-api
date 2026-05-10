@@ -76,6 +76,17 @@ def test_station_role_module_tasks_do_not_skip_check_mode():
 def test_station_role_keeps_storage_resolution_and_payload_planning():
     tasks = load_tasks()
     task_names = [task["name"] for task in tasks]
+    expected_resolved = (
+        "{{ azuracast_stations | "
+        "fculpo.azuracast_api.azuracast_resolve_storage_references("
+        "azuracast_stations_storage_live_response.json) }}"
+    )
+    expected_plan = (
+        "{{ azuracast_stations_resolved | "
+        "fculpo.azuracast_api.azuracast_station_api_payloads | "
+        "fculpo.azuracast_api.azuracast_plan_actions("
+        "azuracast_stations_live_response.json, 'short_name') }}"
+    )
 
     assert "Fetch current AzuraCast storage locations for station references" in task_names
     assert "Resolve station storage references" in task_names
@@ -86,11 +97,11 @@ def test_station_role_keeps_storage_resolution_and_payload_planning():
 
     assert (
         resolve["ansible.builtin.set_fact"]["azuracast_stations_resolved"]
-        == "{{ azuracast_stations | fculpo.azuracast_api.azuracast_resolve_storage_references(azuracast_stations_storage_live_response.json) }}"
+        == expected_resolved
     )
     assert (
         plan["ansible.builtin.set_fact"]["azuracast_stations_plan"]
-        == "{{ azuracast_stations_resolved | fculpo.azuracast_api.azuracast_station_api_payloads | fculpo.azuracast_api.azuracast_plan_actions(azuracast_stations_live_response.json, 'short_name') }}"
+        == expected_plan
     )
 
 

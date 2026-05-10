@@ -25,6 +25,12 @@ def test_settings_role_keeps_uri_fetch_drift_and_update_path():
         "Select desired AzuraCast settings fields from live state",
     )
     update = task_by_name("roles/settings/tasks/main.yml", "Update AzuraCast settings")
+    expected_before = (
+        "{{ azuracast_settings_live_response.json | "
+        "fculpo.azuracast_api.azuracast_compare_shape | "
+        "fculpo.azuracast_api.azuracast_desired_shape("
+        "azuracast_settings_after) }}"
+    )
 
     assert fetch["ansible.builtin.uri"]["method"] == "GET"
     assert fetch["ansible.builtin.uri"]["url"] == (
@@ -38,7 +44,7 @@ def test_settings_role_keeps_uri_fetch_drift_and_update_path():
     )
     assert (
         before["ansible.builtin.set_fact"]["azuracast_settings_before"]
-        == "{{ azuracast_settings_live_response.json | fculpo.azuracast_api.azuracast_compare_shape | fculpo.azuracast_api.azuracast_desired_shape(azuracast_settings_after) }}"
+        == expected_before
     )
 
     assert "ansible.builtin.uri" in update
